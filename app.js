@@ -8,7 +8,7 @@ require("dotenv").config();
 const dotenv = require("dotenv");
 const fileUpload = require("express-fileupload");
 
-const port = 6000;
+const port = process.env.port;
 MongoDbConnect();
 dotenv.config();
 
