@@ -8,7 +8,7 @@ require("dotenv").config();
 const dotenv = require("dotenv");
 const fileUpload = require("express-fileupload");
 
-const port = 6000;
+const port = 8800;
 MongoDbConnect();
 dotenv.config();
 
@@ -27,6 +27,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(fileUpload());
 app.use("/upload", express.static(path.join(__dirname, "upload")));
+
+app.get("/api/image/:filename", (req, res) => {
+  const filename = req.params.filename;
+  res.sendFile(path.join(__dirname, "upload", filename));
+});
 
 app.use("/api", userRoutes);
 app.use("/api/categories", categoryRoutes);
