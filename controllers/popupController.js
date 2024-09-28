@@ -53,6 +53,7 @@ exports.createPopups = async (req, res) => {
       }
 
       const popupsData = { ...req.body, popupId, popupImage: imagePath };
+
       const newPopup = new Popups(popupsData);
 
       await newPopup.save();
