@@ -82,26 +82,21 @@ exports.getProducts = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    // Build the match object dynamically based on query parameters
     const match = {};
 
-    // Filter by active status
     if (req.query.active) {
       match.active = req.query.active === "true";
     }
 
-    // Filter by category
     if (req.query.category) {
       match.categoryName = req.query.category;
     }
 
-    // Search by brandName and moleculeName (case-insensitive)
     if (req.query.search) {
       const searchRegex = new RegExp(req.query.search, "i");
       match.$or = [{ brandName: searchRegex }, { moleculeName: searchRegex }];
     }
 
-    // Cache key includes page, limit, active status, category, and search query
     let cacheKey = `page:${page}-limit:${limit}`;
     if (req.query.active) {
       cacheKey += `-active:${req.query.active}`;
@@ -113,27 +108,22 @@ exports.getProducts = async (req, res) => {
       cacheKey += `-search:${req.query.search}`;
     }
 
-    // Check if cached results exist
     const cachedProducts = cache.get(cacheKey);
     if (cachedProducts) {
       return res.status(200).json(cachedProducts);
     }
 
-    // Count the total number of documents that match the filter
     const totalDocuments = await Products.countDocuments(match);
 
-    // Build the aggregation pipeline
     const pipeline = [{ $match: match }];
     pipeline.push({ $sort: { createdAt: -1 } });
     pipeline.push({ $skip: skip });
     pipeline.push({ $limit: limit });
 
-    // Execute the aggregation pipeline
     const products = await Products.aggregate(pipeline);
 
     const totalPages = Math.ceil(totalDocuments / limit);
 
-    // Prepare the result
     const result = {
       page,
       totalPages,
@@ -141,10 +131,8 @@ exports.getProducts = async (req, res) => {
       data: products,
     };
 
-    // Cache the result
     cache.set(cacheKey, result);
 
-    // Return the result
     res.status(200).json(result);
   } catch (error) {
     console.error("Error fetching Products:", error);
@@ -162,26 +150,24 @@ exports.searchProducts = async (req, res) => {
       return res.status(400).json({ message: "Query parameter is required" });
     }
 
-    // Use regex to match partial brandName or moleculeName (case-insensitive)
-    const searchRegex = new RegExp(searchQuery, "i");
+    // Create a regex pattern that matches any string containing each character of the searchQuery in order
+    const fuzzyRegex = new RegExp(searchQuery.split("").join(".*"), "i");
 
-    // Aggregate to ensure unique moleculeName and brandName combinations
     const products = await Products.aggregate([
       {
         $match: {
-          $or: [{ brandName: searchRegex }, { moleculeName: searchRegex }],
+          $or: [{ brandName: fuzzyRegex }, { moleculeName: fuzzyRegex }],
         },
       },
       {
-        // Group by moleculeName to ensure uniqueness
         $group: {
-          _id: "$moleculeName", // Group by moleculeName to ensure unique molecule names
-          moleculeName: { $first: "$moleculeName" }, // Get the first moleculeName in each group
-          brandName: { $first: "$brandName" }, // Optionally, get the brand name
+          _id: "$moleculeName",
+          moleculeName: { $first: "$moleculeName" },
+          brandName: { $first: "$brandName" },
         },
       },
       {
-        $limit: 10, // Limit the number of suggestions returned
+        $limit: 30,
       },
     ]);
 
@@ -190,6 +176,33 @@ exports.searchProducts = async (req, res) => {
     console.error("Error searching Products:", error);
     res.status(500).json({
       message: "Error searching Products",
+      error: error.message,
+    });
+  }
+};
+
+exports.getRandomSuggestions = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 30;
+
+    const randomProducts = await Products.aggregate([
+      {
+        $sample: { size: limit },
+      },
+      {
+        $group: {
+          _id: "$moleculeName",
+          moleculeName: { $first: "$moleculeName" },
+          brandName: { $first: "$brandName" },
+        },
+      },
+    ]);
+
+    res.status(200).json(randomProducts);
+  } catch (error) {
+    console.error("Error fetching random suggestions:", error);
+    res.status(500).json({
+      message: "Error fetching random suggestions",
       error: error.message,
     });
   }

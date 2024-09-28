@@ -80,13 +80,11 @@ exports.deleteMolecule = async (req, res) => {
   try {
     const { moleculeId } = req.params;
 
-    // Find brand to get public_id
     const moleculeDelete = await Molecule.findOne({ moleculeId });
     if (!moleculeDelete) {
       return res.status(404).json({ message: "Molecule not found" });
     }
 
-    // Delete brand from database
     await Molecule.findOneAndDelete({ moleculeId });
     res.status(200).json({ message: "Molecule deleted successfully" });
   } catch (error) {

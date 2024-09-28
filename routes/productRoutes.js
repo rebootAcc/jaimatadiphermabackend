@@ -7,6 +7,8 @@ const router = express.Router();
 router.post("/create", productController.createProducts);
 router.get("/get", productController.getProducts);
 router.get("/search", productController.searchProducts);
+router.get("/random-suggestions", productController.getRandomSuggestions);
+
 router.put("/update/:productId", productController.updateProduct);
 router.get("/get/:productId", productController.getProductById);
 router.delete("/delete/:productId", productController.deleteProduct);
